@@ -1,0 +1,54 @@
+name: Publish Local File Server
+
+on:
+  workflow_call:
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download NuGet package artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: nupkg
+        path: ./artifact
+
+    - name: Install NuGet CLI
+      run: |
+        Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+      shell: powershell
+
+    - name: Start local file server
+      run: |
+        Start-Process python "-m http.server 8080 --directory artifact"
+        Start-Sleep -Seconds 5
+      shell: pwsh
+    
+    - name: List files in artifact directory (local check)
+      run: |
+        Write-Host "Arquivos presentes localmente na pasta artifact:"
+        Get-ChildItem -Path ./artifact -Recurse | Format-List
+      shell: powershell
+    
+    - name: Verify HTTP server is serving files
+      run: |
+        Write-Host "Verificando conteúdo servido via HTTP..."
+        Invoke-WebRequest -Uri http://localhost:8080/ -OutFile index.html
+        Write-Host "Conteúdo da página index.html (lista de arquivos):"
+        Get-Content index.html
+      shell: powershell
+    
+    - name: Download package from local file server
+      run: |
+        $packageName = (Get-ChildItem ./artifact/*.nupkg).Name
+        Write-Host "Baixando pacote: $packageName do servidor local via HTTP..."
+        Invoke-WebRequest -Uri ("http://localhost:8080/" + $packageName) -OutFile "downloaded-from-server.nupkg"
+        Write-Host "Download concluído."
+        $downloadedFile = Get-Item ./downloaded-from-server.nupkg
+        Write-Host "Arquivo baixado:"
+        Write-Host " - Nome: $($downloadedFile.Name)"
+        Write-Host " - Tamanho: $($downloadedFile.Length) bytes"
+      shell: powershell
