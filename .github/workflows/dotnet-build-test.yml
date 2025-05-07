@@ -3,8 +3,22 @@ name: Build, Test and Sonar Analysis
 on:
   workflow_call:
     inputs:
+      solution-path:
+        description: 'Caminho para a .sln (ex: WindowsFormsApp/WindowsFormsApp.sln)'
+        required: true
+        type: string
+      project-folder:
+        description: 'Pasta do projeto para empacotar (ex: WindowsFormsApp)'
+        required: true
+        type: string
+      runs-on:
+        description: 'Runner para executar o job (ex: windows-latest ou ubuntu-latest)'
+        required: true
+        type: string
       runSonar:
+        description: 'Executar análise Sonar?'
         required: false
+        default: false
         type: boolean
     secrets:
       SONAR_PROJECT_KEY:
@@ -18,67 +32,59 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: windows-latest
+    runs-on: ${{ inputs.runs-on }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v1
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
 
-    - name: Cache NuGet packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
 
-    - name: Restore NuGet packages
-      run: nuget restore WindowsFormsApp/WindowsFormsApp.sln
+      - name: Restore NuGet packages
+        run: nuget restore ${{ inputs.solution-path }}
 
-    - name: Begin SonarCloud analysis
-      if: inputs.runSonar == true
-      run: |
-        choco install sonarscanner-msbuild-net46 --no-progress
-        SonarScanner.MSBuild.exe begin `
-          /k:"${{ secrets.SONAR_PROJECT_KEY }}" `
-          /o:"${{ secrets.SONAR_ORGANIZATION }}" `
-          /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
-          /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-      shell: pwsh
+      - name: Begin SonarCloud analysis
+        if: ${{ inputs.runSonar }}
+        shell: pwsh
+        run: |
+          choco install sonarscanner-msbuild-net46 --no-progress
+          SonarScanner.MSBuild.exe begin `
+            /k:"${{ secrets.SONAR_PROJECT_KEY }}" `
+            /o:"${{ secrets.SONAR_ORGANIZATION }}" `
+            /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
+            /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-    - name: Build solution
-      run: msbuild WindowsFormsApp/WindowsFormsApp.sln /p:Configuration=Release
+      - name: Build solution
+        run: msbuild ${{ inputs.solution-path }} /p:Configuration=Release
 
-    - name: Run tests using VSTest
-      shell: pwsh
-      run: |
-        $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
-        $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+      - name: Run tests using VSTest
+        shell: pwsh
+        run: |
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
+          foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
 
-        $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
+      - name: End SonarCloud analysis
+        if: ${{ inputs.runSonar }}
+        shell: pwsh
+        run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-        foreach ($dll in $dlls) {
-          & $vstest $dll.FullName --logger:trx
-        }
+      - name: Baixar e empacotar com NuGet.exe
+        shell: powershell
+        run: |
+          Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+          ./nuget.exe pack ${{ inputs.project-folder }}/${{ inputs.project-folder }}.csproj -Properties Configuration=Release -OutputDirectory nupkg
 
-    - name: End SonarCloud analysis
-      if: inputs.runSonar == true
-      run: |
-        SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
-      shell: pwsh
-
-    - name: Baixar e empacotar com NuGet.exe
-      run: |
-        Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-        ./nuget.exe pack WindowsFormsApp/WindowsFormsApp/WindowsFormsApp.csproj -Properties Configuration=Release -OutputDirectory nupkg
-      shell: powershell
-
-    - name: Upload NuGet package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: nupkg
-        path: nupkg/*.nupkg
-
+      - name: Upload NuGet package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
