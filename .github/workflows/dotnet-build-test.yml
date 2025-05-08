@@ -11,6 +11,10 @@ on:
         description: 'Pasta do projeto para empacotar (ex: WindowsFormsApp)'
         required: true
         type: string
+      csproj:
+        description: 'Caminho para o arquivo .csproj (ex: WindowsFormsApp/WindowsFormsApp.csproj)'
+        required: true
+        type: string
       runs-on:
         description: 'Runner para executar o job (ex: windows-latest ou ubuntu-latest)'
         required: true
