@@ -85,7 +85,7 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-          ./nuget.exe pack ${{ inputs.project-folder }}/${{ inputs.project-folder }}.csproj -Properties Configuration=Release -OutputDirectory nupkg
+          ./nuget.exe pack ${{ inputs.csproj }} -Properties Configuration=Release -OutputDirectory nupkg
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4
