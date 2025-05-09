@@ -15,15 +15,6 @@ on:
         description: 'Caminho para o arquivo .csproj (ex: WindowsFormsApp/WindowsFormsApp.csproj)'
         required: true
         type: string
-      runs-on:
-        description: 'Runner para executar o job (ex: windows-latest ou ubuntu-latest)'
-        required: true
-        type: string
-      runSonar:
-        description: 'Executar análise Sonar?'
-        required: false
-        default: false
-        type: boolean
     secrets:
       SONAR_PROJECT_KEY:
         required: false
@@ -36,14 +27,14 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1
+        uses: microsoft/setup-msbuild@v2
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
