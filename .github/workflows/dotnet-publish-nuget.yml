@@ -2,53 +2,23 @@ name: Reusable NuGet Publish Workflow
 
 on:
   workflow_call:
-    inputs:
-      artifact-name:
-        required: false
-        type: string
-        default: 'nupkg'
-        description: 'Name of the artifact containing the NuGet package'
-      artifact-path:
-        required: false
-        type: string
-        default: './nupkg'
-        description: 'Path where to download the artifact'
-      nuget-version:
-        required: false
-        type: string
-        default: 'latest'
-        description: 'NuGet version to use'
-      package-pattern:
-        required: false
-        type: string
-        default: '*.nupkg'
-        description: 'Pattern to match NuGet packages for pushing'
-      runs-on:
-        required: false
-        type: string
-        default: 'windows-latest'
-        description: 'Runner to use for this job'
-    secrets:
-      NUGET_API_KEY:
-        required: true
-        description: 'API key for NuGet repository'
 
 jobs:
   publish:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Download artifact .nupkg
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.artifact-name }}
-          path: ${{ inputs.artifact-path }}
+          name: nupkg
+          path: ./nupkg
           
       - name: Setup NuGet
-        uses: NuGet/setup-nuget@v1
+        uses: NuGet/setup-nuget@v2
         with:
-          nuget-version: ${{ inputs.nuget-version }}
+           nuget-version: 5.11.0
           
       - name: Configure NuGet source
         run: |
@@ -56,4 +26,4 @@ jobs:
 
       - name: Push package
         run: |
-          nuget push "${{ inputs.artifact-path }}/${{ inputs.package-pattern }}" -Source "github" -ApiKey "${{ secrets.NUGET_API_KEY }}" -SkipDuplicate
+          nuget push "./nupkg/*.nupkg" -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
