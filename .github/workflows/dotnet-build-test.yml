@@ -46,7 +46,6 @@ jobs:
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
 
       - name: Begin SonarCloud analysis
-        if: ${{ inputs.runSonar }}
         shell: pwsh
         run: |
           choco install sonarscanner-msbuild-net46 --no-progress
