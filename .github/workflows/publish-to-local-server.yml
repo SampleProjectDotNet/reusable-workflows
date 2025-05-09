@@ -22,8 +22,8 @@ jobs:
       shell: powershell
 
     - name: Recriar ZIP do artefato
-        shell: pwsh
-        run: |
+      shell: pwsh
+      run: |
           $zipName = 'artefato.zip'
           if (Test-Path $zipName) { Remove-Item $zipName }
           Compress-Archive -Path './artifact/*' `
