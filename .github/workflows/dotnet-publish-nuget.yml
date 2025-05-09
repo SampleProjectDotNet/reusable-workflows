@@ -3,6 +3,7 @@ name: Reusable NuGet Publish Workflow
 on:
   workflow_call:
 
+
 jobs:
   publish:
     runs-on: windows-latest
@@ -14,6 +15,13 @@ jobs:
         with:
           name: nupkg
           path: ./nupkg
+
+      - name: Listar conteúdo de ./nupkg
+        shell: pwsh
+        run: |
+          Write-Host '=== Conteúdo de ./nupkg ==='
+          Get-ChildItem -Path ./nupkg -Recurse | ForEach-Object { Write-Host $_.FullName }
+          Write-Host '============================'
           
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
@@ -25,5 +33,8 @@ jobs:
           nuget sources add -Name "github" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -Username "${{ github.actor }}" -Password "${{ secrets.GITHUB_TOKEN }}" -StorePasswordInClearText
 
       - name: Push package
-        run: |
-          nuget push "./nupkg/*.nupkg" -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
+        run: nuget push "./nupkg/MeuPacote.1.0.0.nupkg" \
+          -Source "github" \
+          -ApiKey "${{ secrets.GITHUB_TOKEN }}" \
+          -SkipDuplicate
+
