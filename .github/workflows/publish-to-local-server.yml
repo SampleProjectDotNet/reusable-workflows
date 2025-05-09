@@ -17,6 +17,23 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path './artifact/*' -DestinationPath artefato.zip -Force
 
+      - name: Verificar se AZURE_CREDENTIALS está definida
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrEmpty("${{ secrets.AZURE_CREDENTIALS }}")) {
+            Write-Host "AVISO: AZURE_CREDENTIALS não está definida ou está vazia!"
+            exit 1
+          } else {
+            Write-Host "AZURE_CREDENTIALS está definida (primeiros 5 caracteres: ${{ secrets.AZURE_CREDENTIALS != '' && substring(secrets.AZURE_CREDENTIALS, 0, 5) || '' }}***)"
+          }
+          
+          if ([string]::IsNullOrEmpty("${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}")) {
+            Write-Host "AVISO: AZURE_STORAGE_CONNECTION_STRING não está definida ou está vazia!"
+            exit 1
+          } else {
+            Write-Host "AZURE_STORAGE_CONNECTION_STRING está definida (formato correto: começa com DefaultEndpoints...)"
+          }
+          
       - name: Azure Login
         uses: azure/login@v2
         with:
