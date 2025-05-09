@@ -3,27 +3,10 @@ name: Build, Test and Sonar Analysis
 on:
   workflow_call:
     inputs:
-      solution-path:
-        description: 'Caminho para a .sln (ex: WindowsFormsApp/WindowsFormsApp.sln)'
+      project-name:
         required: true
         type: string
-      project-folder:
-        description: 'Pasta do projeto para empacotar (ex: WindowsFormsApp)'
-        required: true
-        type: string
-      csproj:
-        description: 'Caminho para o arquivo .csproj (ex: WindowsFormsApp/WindowsFormsApp.csproj)'
-        required: true
-        type: string
-      runs-on:
-        description: 'Runner para executar o job (ex: windows-latest ou ubuntu-latest)'
-        required: true
-        type: string
-      runSonar:
-        description: 'Executar análise Sonar?'
-        required: false
-        default: false
-        type: boolean
+
     secrets:
       SONAR_PROJECT_KEY:
         required: false
@@ -51,8 +34,26 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
 
+      - name: Detect solution and project paths
+        id: detect-paths
+        shell: pwsh
+        run: |
+          $projectName = "${{ inputs.project-name }}"
+          $sln = Get-ChildItem -Recurse -Filter "$projectName.sln" | Select-Object -First 1
+          $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Select-Object -First 1
+          if (-not $sln -or -not $csproj) {
+            Write-Error "Não foi possível encontrar .sln ou .csproj com o nome base '$projectName'."
+            exit 1
+          }
+          $solutionPath = $sln.FullName
+          $csprojPath = $csproj.FullName
+          $projectFolder = Split-Path $csprojPath -Parent
+          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$csprojPath" >> $env:GITHUB_OUTPUT
+          echo "projectFolder=$projectFolder" >> $env:GITHUB_OUTPUT
+
       - name: Restore NuGet packages
-        run: nuget restore ${{ inputs.solution-path }}
+        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
 
       - name: Begin SonarCloud analysis
         if: ${{ inputs.runSonar }}
@@ -66,7 +67,7 @@ jobs:
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
       - name: Build solution
-        run: msbuild ${{ inputs.solution-path }} /p:Configuration=Release
+        run: msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
       - name: Run tests using VSTest
         shell: pwsh
@@ -85,7 +86,7 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-          ./nuget.exe pack ${{ inputs.csproj }} -Properties Configuration=Release -OutputDirectory nupkg
+          ./nuget.exe pack "${{ steps.detect-paths.outputs.csprojPath }}" -Properties Configuration=Release -OutputDirectory nupkg
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4
