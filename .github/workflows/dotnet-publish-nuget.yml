@@ -26,5 +26,8 @@ jobs:
           nuget sources add -Name "github" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -Username "${{ github.actor }}" -Password "${{ secrets.GITHUB_TOKEN }}" -StorePasswordInClearText
 
       - name: Push package
-        run: nuget push ./nupkg/*.nupkg -Source "github" -ApiKey ${{ secrets. GITHUB_TOKEN }} -SkipDuplicate
-        shell: cmd
+        run: |
+          $files = Get-ChildItem ./nupkg/*.nupkg
+          foreach ($file in $files) {
+            nuget push $file.FullName -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
+          }
