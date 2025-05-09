@@ -7,16 +7,6 @@ on:
         required: true
         type: string
 
-    secrets:
-      SONAR_PROJECT_KEY:
-        required: false
-      SONAR_ORGANIZATION:
-        required: false
-      SONAR_URL:
-        required: false
-      SONAR_TOKEN:
-        required: false
-
 jobs:
   build-and-test:
     runs-on: windows-latest
