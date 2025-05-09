@@ -21,34 +21,34 @@ jobs:
         Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
       shell: powershell
 
-    - name: Start local file server
-      run: |
-        Start-Process python "-m http.server 8080 --directory artifact"
-        Start-Sleep -Seconds 5
+    - name: Recreate ZIP from downloaded artifact
       shell: pwsh
-    
-    - name: List files in artifact directory (local check)
       run: |
-        Write-Host "Arquivos presentes localmente na pasta artifact:"
-        Get-ChildItem -Path ./artifact -Recurse | Format-List
-      shell: powershell
-    
+        $zipName = 'artifact.zip'
+        if (Test-Path $zipName) { Remove-Item $zipName }
+        Compress-Archive -Path './artifact/*' -DestinationPath $zipName
+        Write-Host "ZIP created at: $zipName"
+
+    - name: Start local HTTP file server
+      shell: pwsh
+      run: |
+        Start-Process python -ArgumentList '-m http.server 8080 --directory .' -NoNewWindow
+        Start-Sleep -Seconds 5
+        Write-Host "Server started at http://localhost:8080/"
+
     - name: Verify HTTP server is serving files
+      shell: pwsh
       run: |
-        Write-Host "Verificando conteúdo servido via HTTP..."
+        Write-Host "=== HTTP index ==="
         Invoke-WebRequest -Uri http://localhost:8080/ -OutFile index.html
-        Write-Host "Conteúdo da página index.html (lista de arquivos):"
         Get-Content index.html
-      shell: powershell
-    
-    - name: Download package from local file server
+        Write-Host "=================="
+
+    - name: Download ZIP from local server
+      shell: pwsh
       run: |
-        $packageName = (Get-ChildItem ./artifact/*.nupkg).Name
-        Write-Host "Baixando pacote: $packageName do servidor local via HTTP..."
-        Invoke-WebRequest -Uri ("http://localhost:8080/" + $packageName) -OutFile "downloaded-from-server.nupkg"
-        Write-Host "Download concluído."
-        $downloadedFile = Get-Item ./downloaded-from-server.nupkg
-        Write-Host "Arquivo baixado:"
-        Write-Host " - Nome: $($downloadedFile.Name)"
-        Write-Host " - Tamanho: $($downloadedFile.Length) bytes"
-      shell: powershell
+        $url = 'http://localhost:8080/artifact.zip'
+        Write-Host "Downloading from $url …"
+        Invoke-WebRequest -Uri $url -OutFile downloaded.zip
+        $info = Get-Item downloaded.zip
+        Write-Host "Downloaded file: $($info.Name) — $($info.Length) bytes"
