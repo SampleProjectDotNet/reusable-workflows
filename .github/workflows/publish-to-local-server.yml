@@ -1,58 +1,36 @@
-name: Publish Local File Server
-
-on:
-  workflow_call:
+name: Publish ZIP to Azure Blob
+on: workflow_call
 
 jobs:
   publish:
     runs-on: windows-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Download NuGet package artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: nupkg
-        path: ./artifact
+      - name: Download NuGet package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: nupkg
+          path: ./artifact
 
-    - name: Install NuGet CLI
-      run: |
-        Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-      shell: powershell
+      - name: Recriar ZIP do artefato
+        shell: pwsh
+        run: Compress-Archive -Path './artifact/*' -DestinationPath artefato.zip -Force
 
-    - name: Recriar ZIP do artefato
-      shell: pwsh
-      run: |
-          $zipName = 'artefato.zip'
-          if (Test-Path $zipName) { Remove-Item $zipName }
-          Compress-Archive -Path './artifact/*' `
-                           -DestinationPath $zipName `
-                           -Force                   # usa System.IO.Compression.ZipArchive :contentReference[oaicite:8]{index=8}
+      - name: Login na Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
 
-    - name: Iniciar servidor HTTP local
-      shell: pwsh
-      run: |
-        Start-Process `
-          -FilePath python `
-          -ArgumentList '-m http.server 8080 --directory artifact' `
-          -NoNewWindow              # mantém o processo vivo em background :contentReference[oaicite:9]{index=9}
-        Start-Sleep -Seconds 5       # aguarda bind
-    - name: Verificar conteúdo local
-      shell: pwsh
-      run: |
-        Write-Host '=== Conteúdo de ./artifact ==='
-        Get-ChildItem -Path ./artifact -Recurse | ForEach-Object { Write-Host $_.FullName }
-    - name: Verificar conteúdo servido via HTTP
-      shell: pwsh
-      run: |
-        Write-Host '=== Índice HTTP ==='
-        Invoke-WebRequest -Uri http://localhost:8080/ -OutFile index.html
-        Get-Content index.html
-    - name: Baixar ZIP via HTTP
-      shell: pwsh
-      run: |
-        $url = 'http://localhost:8080/artefato.zip'
-        Invoke-WebRequest -Uri $url -OutFile baixado.zip
-        $info = Get-Item baixado.zip
-        Write-Host "Arquivo baixado: $($info.Name) — $($info.Length) bytes"
+      - name: Upload ZIP para Blob
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az storage blob upload \
+              --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+              --container-name artefatos \
+              --name artefato.zip \
+              --file artefato.zip \
+              --overwrite
