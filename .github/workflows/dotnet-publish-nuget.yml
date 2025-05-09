@@ -27,7 +27,4 @@ jobs:
 
       - name: Push package
         run: |
-          $files = Get-ChildItem ./nupkg/*.nupkg
-          foreach ($file in $files) {
-            nuget push $file.FullName -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
-          }
+          nuget push (Get-ChildItem ./nupkg/*.nupkg | Select-Object -First 1).FullName -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
