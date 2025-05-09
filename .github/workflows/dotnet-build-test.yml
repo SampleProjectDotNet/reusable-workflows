@@ -24,12 +24,10 @@ jobs:
         id: detect-name
         shell: pwsh
         run: |
-          if (-not "${{ inputs.project-name }}") {
-            $name = Split-Path $env:GITHUB_WORKSPACE -Leaf
-          } else {
-            $name = "${{ inputs.project-name }}"
-          }
-          echo "project-name=$name" >> $env:GITHUB_OUTPUT
+          # Split-Path -Leaf retorna só o nome do último diretório
+          $name = Split-Path $env:GITHUB_WORKSPACE -Leaf
+          echo "project-folder-name=$name" >> $env:GITHUB_OUTPUT
+
 
       - name: Detect solution and project paths
         id: detect-paths
