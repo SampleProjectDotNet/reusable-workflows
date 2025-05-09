@@ -33,8 +33,4 @@ jobs:
           nuget sources add -Name "github" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -Username "${{ github.actor }}" -Password "${{ secrets.GITHUB_TOKEN }}" -StorePasswordInClearText
 
       - name: Push package
-        run: nuget push "./nupkg/ClassLibrary.1.0.0.nupkg" \
-          -Source "github" \
-          -ApiKey "${{ secrets.GITHUB_TOKEN }}" \
-          -SkipDuplicate
-
+        run: nuget push "./nupkg/ClassLibrary.1.0.0.nupkg" -Source "github" -ApiKey $GITHUB_TOKEN -SkipDuplicate
