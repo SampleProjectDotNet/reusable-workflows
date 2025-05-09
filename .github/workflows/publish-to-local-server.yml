@@ -25,10 +25,10 @@ jobs:
       - name: Upload ZIP para Blob
         uses: azure/CLI@v1
         with:
-          inlineScript: |
-            az storage blob upload \
-              --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-              --container-name artefatos \
-              --name artefato.zip \
-              --file artefato.zip \
-              --overwrite
+        inlineScript: |
+          az storage blob upload \
+            --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
+            --container-name artifacts \
+            --name artefato.zip \
+            --file artefato.zip \
+            --overwrite
