@@ -27,3 +27,4 @@ jobs:
 
       - name: Push package
         run: nuget push ./nupkg/*.nupkg -Source "github" -ApiKey ${{ secrets. GITHUB_TOKEN }} -SkipDuplicate
+        shell: cmd
