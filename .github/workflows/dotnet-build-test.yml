@@ -67,7 +67,6 @@ jobs:
           foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
 
       - name: End SonarCloud analysis
-        if: ${{ inputs.runSonar }}
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
