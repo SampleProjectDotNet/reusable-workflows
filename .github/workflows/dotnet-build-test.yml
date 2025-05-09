@@ -2,10 +2,6 @@ name: Build, Test and Sonar Analysis
 
 on:
   workflow_call:
-    inputs:
-      project-name:
-        required: true
-        type: string
 
 jobs:
   build-and-test:
@@ -24,23 +20,31 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
 
+      - name: Detect project folder name
+        id: detect-name
+        shell: pwsh
+        run: |
+          if (-not "${{ inputs.project-name }}") {
+            $name = Split-Path $env:GITHUB_WORKSPACE -Leaf
+          } else {
+            $name = "${{ inputs.project-name }}"
+          }
+          echo "project-name=$name" >> $env:GITHUB_OUTPUT
+
       - name: Detect solution and project paths
         id: detect-paths
         shell: pwsh
         run: |
-          $projectName = "${{ inputs.project-name }}"
-          $sln = Get-ChildItem -Recurse -Filter "$projectName.sln" | Select-Object -First 1
-          $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Select-Object -First 1
-          if (-not $sln -or -not $csproj) {
-            Write-Error "Não foi possível encontrar .sln ou .csproj com o nome base '$projectName'."
+          $proj = "${{ steps.detect-name.outputs.project-name }}"
+          $sln = Get-ChildItem -Recurse -Filter "$proj.sln" | Select-Object -First 1
+          $cs  = Get-ChildItem -Recurse -Filter "$proj.csproj" | Select-Object -First 1
+          if (-not $sln -or -not $cs) {
+            Write-Error "Não encontrou $proj.sln ou $proj.csproj"
             exit 1
           }
-          $solutionPath = $sln.FullName
-          $csprojPath = $csproj.FullName
-          $projectFolder = Split-Path $csprojPath -Parent
-          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
-          echo "csprojPath=$csprojPath" >> $env:GITHUB_OUTPUT
-          echo "projectFolder=$projectFolder" >> $env:GITHUB_OUTPUT
+          echo "solutionPath=$($sln.FullName)"  >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$($cs.FullName)"    >> $env:GITHUB_OUTPUT
+          echo "projectFolder=$(Split-Path $cs.FullName -Parent)" >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
