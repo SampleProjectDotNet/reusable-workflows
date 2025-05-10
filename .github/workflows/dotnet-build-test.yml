@@ -41,17 +41,47 @@ jobs:
           $solutionPath = $sln.FullName
           $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
           
-          # Procurar o arquivo .csproj com o mesmo nome do .sln
-          $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Select-Object -First 1
+          # Estratégia de busca melhorada para projetos:
+          # 1. Primeiro, procurar um diretório com o mesmo nome do projeto (padrão comum)
+          $projectDir = Get-ChildItem -Path "." -Directory -Filter "$projectName" | Select-Object -First 1
           
+          if ($projectDir) {
+            # Procurar um .csproj dentro da pasta com nome do projeto
+            $csproj = Get-ChildItem -Path $projectDir.FullName -Filter "*.csproj" | Select-Object -First 1
+            
+            if ($csproj) {
+              Write-Host "Encontrado .csproj na pasta do projeto principal: $($csproj.FullName)"
+            }
+          }
+          
+          # 2. Se não encontrou na etapa anterior, procura um .csproj com nome igual ao da solução
           if (-not $csproj) {
-            # Se não encontrar um .csproj com nome igual ao .sln, pega o primeiro .csproj encontrado
+            $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Where-Object { -not $_.FullName.Contains(".Test") -and -not $_.FullName.Contains("Tests") } | Select-Object -First 1
+            
+            if ($csproj) {
+              Write-Host "Encontrado .csproj com o mesmo nome da solução: $($csproj.FullName)"
+            }
+          }
+          
+          # 3. Se ainda não encontrou, procurar qualquer .csproj que não seja de teste
+          if (-not $csproj) {
+            $csproj = Get-ChildItem -Recurse -Filter "*.csproj" | Where-Object { -not $_.FullName.Contains(".Test") -and -not $_.FullName.Contains("Tests") } | Select-Object -First 1
+            
+            if ($csproj) {
+              Write-Host "Encontrado .csproj não relacionado a testes: $($csproj.FullName)"
+            }
+          }
+          
+          # 4. Em último caso, usar qualquer .csproj
+          if (-not $csproj) {
             $csproj = Get-ChildItem -Recurse -Filter "*.csproj" | Select-Object -First 1
             
             if (-not $csproj) {
               Write-Error "Não foi possível encontrar nenhum arquivo .csproj no repositório."
               exit 1
             }
+            
+            Write-Host "Usando primeiro .csproj encontrado: $($csproj.FullName)"
           }
           
           $csprojPath = $csproj.FullName
