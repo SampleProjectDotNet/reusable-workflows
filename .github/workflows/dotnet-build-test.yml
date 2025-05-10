@@ -2,10 +2,7 @@ name: Build, Test and Sonar Analysis
 
 on:
   workflow_call:
-    inputs:
-      project-name:
-        required: true
-        type: string
+    # Removido o input project-name, agora será detectado automaticamente
 
 jobs:
   build-and-test:
@@ -28,19 +25,44 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          $projectName = "${{ inputs.project-name }}"
-          $sln = Get-ChildItem -Recurse -Filter "$projectName.sln" | Select-Object -First 1
-          $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Select-Object -First 1
-          if (-not $sln -or -not $csproj) {
-            Write-Error "Não foi possível encontrar .sln ou .csproj com o nome base '$projectName'."
+          # Encontrar o arquivo .sln na raiz do repositório
+          $sln = Get-ChildItem -Path "." -Filter "*.sln" -File
+          
+          if (-not $sln) {
+            Write-Error "Não foi possível encontrar um arquivo .sln na raiz do repositório."
             exit 1
           }
+          
+          # Se houver mais de um .sln, use o primeiro
+          if ($sln -is [array]) {
+            $sln = $sln[0]
+          }
+          
           $solutionPath = $sln.FullName
+          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
+          
+          # Procurar o arquivo .csproj com o mesmo nome do .sln
+          $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Select-Object -First 1
+          
+          if (-not $csproj) {
+            # Se não encontrar um .csproj com nome igual ao .sln, pega o primeiro .csproj encontrado
+            $csproj = Get-ChildItem -Recurse -Filter "*.csproj" | Select-Object -First 1
+            
+            if (-not $csproj) {
+              Write-Error "Não foi possível encontrar nenhum arquivo .csproj no repositório."
+              exit 1
+            }
+          }
+          
           $csprojPath = $csproj.FullName
           $projectFolder = Split-Path $csprojPath -Parent
+          
+          Write-Host "Detectado: Solução '$solutionPath', Projeto '$csprojPath', Nome do Projeto '$projectName'"
+          
           echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
           echo "csprojPath=$csprojPath" >> $env:GITHUB_OUTPUT
           echo "projectFolder=$projectFolder" >> $env:GITHUB_OUTPUT
+          echo "projectName=$projectName" >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
