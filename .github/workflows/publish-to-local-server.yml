@@ -13,18 +13,15 @@ jobs:
           name: nupkg
           path: ./artifact
 
-      - name: Extrair informações do projeto
+      - name: Extract project information
         id: extract-info
         shell: pwsh
         run: |
-          # Obter nome do repositório para estrutura de pastas
           $repoName = "${{ github.repository }}".Split('/')[1]
           echo "repo-name=$repoName" >> $env:GITHUB_OUTPUT
           
-          # Obter nome do pacote NuGet
           $nupkgFile = Get-ChildItem -Path "./artifact" -Filter "*.nupkg" | Select-Object -First 1
           if ($nupkgFile) {
-            # Extrair nome do pacote
             $fileName = $nupkgFile.Name
             $packageName = $fileName -replace '\.([0-9]+\.)+[0-9]+\.nupkg$', ''
             echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
@@ -32,7 +29,7 @@ jobs:
             echo "package-name=$repoName" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Recriar ZIP do artefato
+      - name: Recreate artifact ZIP
         shell: pwsh
         run: |
           Compress-Archive -Path './artifact/*' -DestinationPath artefato.zip -Force
@@ -46,11 +43,9 @@ jobs:
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            # Variáveis para upload
             REPO_NAME="${{ steps.extract-info.outputs.repo-name }}"
             PACKAGE_NAME="${{ steps.extract-info.outputs.package-name }}"
             
-            # Upload para o diretório da aplicação (Azure controla o versionamento automaticamente)
             az storage blob upload \
               --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
               --container-name artifacts \
