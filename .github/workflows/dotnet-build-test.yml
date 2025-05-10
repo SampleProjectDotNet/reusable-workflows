@@ -25,77 +25,38 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          # Encontrar o arquivo .sln na raiz do repositório
-          $sln = Get-ChildItem -Path "." -Filter "*.sln" -File
-          
-          if (-not $sln) {
-            Write-Error "Não foi possível encontrar um arquivo .sln na raiz do repositório."
-            exit 1
-          }
-          
-          # Se houver mais de um .sln, use o primeiro
-          if ($sln -is [array]) {
-            $sln = $sln[0]
-          }
-          
+          # 1) encontra .sln na raiz
+          $sln = Get-ChildItem -Path "." -Filter "*.sln" -File | Select-Object -First 1
+          if (-not $sln) { Write-Error "Solução não encontrada na raiz."; exit 1 }
           $solutionPath = $sln.FullName
-          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
-          
-          # Estratégia de busca melhorada para projetos:
-          # 1. Primeiro, procurar um diretório com o mesmo nome do projeto (padrão comum)
-          $projectDir = Get-ChildItem -Path "." -Directory -Filter "$projectName" | Select-Object -First 1
-          
-          if ($projectDir) {
-            # Procurar um .csproj dentro da pasta com nome do projeto
-            $csproj = Get-ChildItem -Path $projectDir.FullName -Filter "*.csproj" | Select-Object -First 1
-            
-            if ($csproj) {
-              Write-Host "Encontrado .csproj na pasta do projeto principal: $($csproj.FullName)"
-            }
+          $projectName  = [IO.Path]::GetFileNameWithoutExtension($sln.Name)
+
+          # 2) busca todos os .csproj não-teste recursivamente
+          $candidates = Get-ChildItem -Recurse -Filter "*.csproj" | 
+                        Where-Object { $_.Name -like "$projectName.csproj" -or $_.DirectoryName -match "\\$projectName$" } |
+                        Where-Object { $_.FullName -notmatch '\.Test(s)?[\\/]' }
+
+          # 3) se não achar nome exato, tenta qualquer não-teste
+          if (-not $candidates) {
+            $candidates = Get-ChildItem -Recurse -Filter "*.csproj" |
+                          Where-Object { $_.FullName -notmatch '\.Test(s)?[\\/]' }
           }
-          
-          # 2. Se não encontrou na etapa anterior, procura um .csproj com nome igual ao da solução
-          if (-not $csproj) {
-            $csproj = Get-ChildItem -Recurse -Filter "$projectName.csproj" | Where-Object { -not $_.FullName.Contains(".Test") -and -not $_.FullName.Contains("Tests") } | Select-Object -First 1
-            
-            if ($csproj) {
-              Write-Host "Encontrado .csproj com o mesmo nome da solução: $($csproj.FullName)"
-            }
-          }
-          
-          # 3. Se ainda não encontrou, procurar qualquer .csproj que não seja de teste
-          if (-not $csproj) {
-            $csproj = Get-ChildItem -Recurse -Filter "*.csproj" | Where-Object { -not $_.FullName.Contains(".Test") -and -not $_.FullName.Contains("Tests") } | Select-Object -First 1
-            
-            if ($csproj) {
-              Write-Host "Encontrado .csproj não relacionado a testes: $($csproj.FullName)"
-            }
-          }
-          
-          # 4. Em último caso, usar qualquer .csproj
-          if (-not $csproj) {
-            $csproj = Get-ChildItem -Recurse -Filter "*.csproj" | Select-Object -First 1
-            
-            if (-not $csproj) {
-              Write-Error "Não foi possível encontrar nenhum arquivo .csproj no repositório."
-              exit 1
-            }
-            
-            Write-Host "Usando primeiro .csproj encontrado: $($csproj.FullName)"
-          }
-          
+
+          # 4) ordena por profundidade de pasta (menos pastas = mais “raiz”) e escolhe o primeiro
+          $csproj = $candidates | Sort-Object { $_.FullName.Split('\').Count } | Select-Object -First 1
+          if (-not $csproj) { Write-Error "Nenhum .csproj adequado encontrado."; exit 1 }
           $csprojPath = $csproj.FullName
-          $projectFolder = Split-Path $csprojPath -Parent
-          
-          Write-Host "Detectado: Solução '$solutionPath', Projeto '$csprojPath', Nome do Projeto '$projectName'"
-          
-          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
-          echo "csprojPath=$csprojPath" >> $env:GITHUB_OUTPUT
-          echo "projectFolder=$projectFolder" >> $env:GITHUB_OUTPUT
-          echo "projectName=$projectName" >> $env:GITHUB_OUTPUT
+
+          Write-Host "Usando solução: $solutionPath"
+          Write-Host "Usando projeto:  $csprojPath"
+
+          echo "solutionPath=$solutionPath"  >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$csprojPath"      >> $env:GITHUB_OUTPUT
+          echo "projectName=$projectName"    >> $env:GITHUB_OUTPUT
+
 
       - name: Restore NuGet packages
-        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
+        run: nuget restore
 
       - name: Begin SonarCloud analysis
         shell: pwsh
