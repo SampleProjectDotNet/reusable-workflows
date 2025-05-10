@@ -13,46 +13,23 @@ jobs:
           name: nupkg
           path: ./artifact
 
-      - name: Extrair informações do projeto e versão
+      - name: Extrair informações do projeto
         id: extract-info
         shell: pwsh
         run: |
-          # Data atual em formato visual mais legível (com hífen entre hora e minuto)
-          $timestamp = Get-Date -Format "yyyy-MM-dd.HH-mm"
-          echo "timestamp=$timestamp" >> $env:GITHUB_OUTPUT
-          
           # Obter nome do repositório para estrutura de pastas
           $repoName = "${{ github.repository }}".Split('/')[1]
           echo "repo-name=$repoName" >> $env:GITHUB_OUTPUT
           
-          # Obter versão do pacote NuGet
+          # Obter nome do pacote NuGet
           $nupkgFile = Get-ChildItem -Path "./artifact" -Filter "*.nupkg" | Select-Object -First 1
           if ($nupkgFile) {
-            # Extrair versão do nome do arquivo (formato típico: Package.1.0.0.nupkg)
+            # Extrair nome do pacote
             $fileName = $nupkgFile.Name
             $packageName = $fileName -replace '\.([0-9]+\.)+[0-9]+\.nupkg$', ''
-            $versionMatch = [regex]::Match($fileName, '\.([0-9]+\.[0-9]+\.[0-9]+)\.nupkg$')
-            
-            if ($versionMatch.Success) {
-              $version = $versionMatch.Groups[1].Value
-              echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
-              echo "package-version=$version" >> $env:GITHUB_OUTPUT
-            } else {
-              echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
-              echo "package-version=unknown" >> $env:GITHUB_OUTPUT
-            }
+            echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
           } else {
             echo "package-name=$repoName" >> $env:GITHUB_OUTPUT
-            echo "package-version=unknown" >> $env:GITHUB_OUTPUT
-          }
-          
-          # Verificar se temos uma tag do git
-          if ("${{ github.ref_type }}" -eq "tag") {
-            $tag = "${{ github.ref_name }}"
-            echo "using-tag=true" >> $env:GITHUB_OUTPUT
-            echo "tag=$tag" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "using-tag=false" >> $env:GITHUB_OUTPUT
           }
 
       - name: Recriar ZIP do artefato
@@ -71,34 +48,12 @@ jobs:
           inlineScript: |
             # Variáveis para upload
             REPO_NAME="${{ steps.extract-info.outputs.repo-name }}"
-            TIMESTAMP="${{ steps.extract-info.outputs.timestamp }}"
             PACKAGE_NAME="${{ steps.extract-info.outputs.package-name }}"
             
-            # Determinar a versão a usar
-            if [[ "${{ steps.extract-info.outputs.using-tag }}" == "true" ]]; then
-              VERSION="${{ steps.extract-info.outputs.tag }}"
-            else
-              VERSION="${{ steps.extract-info.outputs.package-version }}"
-              if [[ "$VERSION" == "unknown" ]]; then
-                VERSION="noversion"
-              fi
-            fi
-            
-            # Nome do arquivo final para o histórico (com timestamp bem visual)
-            HISTORY_FILENAME="${PACKAGE_NAME}-${VERSION}_${TIMESTAMP}.zip"
-            
-            # 1. Upload para a pasta principal (sempre sobrescreve - versão atual)
+            # Upload para o diretório da aplicação (Azure controla o versionamento automaticamente)
             az storage blob upload \
               --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
               --container-name artifacts \
               --name "${REPO_NAME}/${PACKAGE_NAME}.zip" \
               --file artefato.zip \
               --overwrite true
-              
-            # 2. Upload para o histórico (com data e versão - nunca sobrescreve)
-            az storage blob upload \
-              --connection-string "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-              --container-name artifacts \
-              --name "${REPO_NAME}/history/${HISTORY_FILENAME}" \
-              --file artefato.zip \
-              --overwrite false
