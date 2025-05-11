@@ -57,7 +57,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG:   ${{ secrets.SONAR_ORGANIZATION }}
-          REPO_NAME:   ${{ github.repository }
+          REPO_NAME:   ${{ github.repository }}
           PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}  
         run: |
           # Tenta criar o projeto; se já existe (HTTP 409), ignora o erro
