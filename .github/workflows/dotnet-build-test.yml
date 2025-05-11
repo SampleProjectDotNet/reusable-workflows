@@ -2,7 +2,6 @@ name: Build, Test and Sonar Analysis
 
 on:
   workflow_call:
-    # Removido o input project-name, agora será detectado automaticamente
 
 jobs:
   build-and-test:
@@ -25,48 +24,66 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          # 1) encontra .sln na raiz
-          $sln = Get-ChildItem -Path "." -Filter "*.sln" -File | Select-Object -First 1
-          if (-not $sln) { Write-Error "Solução não encontrada na raiz."; exit 1 }
           $solutionPath = $sln.FullName
-          $projectName  = [IO.Path]::GetFileNameWithoutExtension($sln.Name)
+          $sln = Get-ChildItem -Path "." -Filter "*.sln" -File | Select-Object -First 1
 
-          # 2) busca todos os .csproj não-teste recursivamente
-          $candidates = Get-ChildItem -Recurse -Filter "*.csproj" | 
-                        Where-Object { $_.Name -like "$projectName.csproj" -or $_.DirectoryName -match "\\$projectName$" } |
-                        Where-Object { $_.FullName -notmatch '\.Test(s)?[\\/]' }
+          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
 
-          # 3) se não achar nome exato, tenta qualquer não-teste
-          if (-not $candidates) {
-            $candidates = Get-ChildItem -Recurse -Filter "*.csproj" |
-                          Where-Object { $_.FullName -notmatch '\.Test(s)?[\\/]' }
-          }
-
-          # 4) ordena por profundidade de pasta (menos pastas = mais “raiz”) e escolhe o primeiro
-          $csproj = $candidates | Sort-Object { $_.FullName.Split('\').Count } | Select-Object -First 1
-          if (-not $csproj) { Write-Error "Nenhum .csproj adequado encontrado."; exit 1 }
+          $projectDir = Join-Path -Path $PWD -ChildPath $projectName
+          $csproj = Get-ChildItem -Path $projectDir -Filter "$projectName.csproj" -Recurse -File |
+                    Where-Object { $_.FullName -notmatch '\.Test(s)?[\\/]' } |
+                    Select-Object -First 1
           $csprojPath = $csproj.FullName
 
-          Write-Host "Usando solução: $solutionPath"
-          Write-Host "Usando projeto:  $csprojPath"
-
-          echo "solutionPath=$solutionPath"  >> $env:GITHUB_OUTPUT
-          echo "csprojPath=$csprojPath"      >> $env:GITHUB_OUTPUT
-          echo "projectName=$projectName"    >> $env:GITHUB_OUTPUT
+          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
+          echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
 
       - name: Restore NuGet packages
         run: nuget restore
+
+      - name: Define Sonar project key
+        id: sonar-key
+        shell: pwsh
+        run: |
+          $org = "${{ secrets.SONAR_ORGANIZATION }}"
+          $repo = "${{ github.repository }}" -replace '^.*/', ''
+          $projectKey = "${org}_${repo}"
+          echo "projectKey=$projectKey" >> $env:GITHUB_OUTPUT
+
+      - name: Ensure SonarCloud project exists
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORG:   ${{ secrets.SONAR_ORGANIZATION }}
+          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}
+        run: |
+          # Tenta criar o projeto; se já existe, ignora o erro (HTTP 409)
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -u "$SONAR_TOKEN:" \
+            -d "organization=$SONAR_ORG" \
+            -d "name=$PROJECT_KEY" \
+            -d "project=$PROJECT_KEY" \
+            https://sonarcloud.io/api/projects/create)
+          if [ "$response" -eq 200 ]; then
+            echo "✔ Projeto Sonar criado com sucesso: $PROJECT_KEY"
+          elif [ "$response" -eq 409 ]; then
+            echo "ℹ Projeto já existe: $PROJECT_KEY"
+          else
+            echo "⚠️ Falha ao criar projeto Sonar (HTTP $response), mas vamos prosseguir."
+          fi
 
       - name: Begin SonarCloud analysis
         shell: pwsh
         run: |
           choco install sonarscanner-msbuild-net46 --no-progress
           SonarScanner.MSBuild.exe begin `
-            /k:"${{ secrets.SONAR_PROJECT_KEY }}" `
+            /k:"${{ steps.sonar-key.outputs.projectKey }}" `
             /o:"${{ secrets.SONAR_ORGANIZATION }}" `
             /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+
 
       - name: Build solution
         run: msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
