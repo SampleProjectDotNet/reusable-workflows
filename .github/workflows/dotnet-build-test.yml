@@ -57,19 +57,21 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG:   ${{ secrets.SONAR_ORGANIZATION }}
-          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}
+          REPO_NAME:   ${{ github.repository }
+          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}  
         run: |
-          # Tenta criar o projeto; se já existe, ignora o erro (HTTP 409)
+          # Tenta criar o projeto; se já existe (HTTP 409), ignora o erro
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -u "$SONAR_TOKEN:" \
             -d "organization=$SONAR_ORG" \
-            -d "name=$PROJECT_KEY" \
+            -d "name=$REPO_NAME" \
             -d "project=$PROJECT_KEY" \
             https://sonarcloud.io/api/projects/create)
+
           if [ "$response" -eq 200 ]; then
-            echo "✔ Projeto Sonar criado com sucesso: $PROJECT_KEY"
+            echo "✔ Projeto Sonar criado com sucesso: key=$PROJECT_KEY, name=$REPO_NAME"
           elif [ "$response" -eq 409 ]; then
-            echo "ℹ Projeto já existe: $PROJECT_KEY"
+            echo "ℹ Projeto já existe: key=$PROJECT_KEY"
           else
             echo "⚠️ Falha ao criar projeto Sonar (HTTP $response), mas vamos prosseguir."
           fi
