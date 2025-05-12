@@ -24,8 +24,8 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          $solutionPath = $sln.FullName
           $sln = Get-ChildItem -Path "." -Filter "*.sln" -File | Select-Object -First 1
+          $solutionPath = $sln.FullName
 
           $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
 
@@ -60,7 +60,6 @@ jobs:
           REPO_NAME:   ${{ github.repository }}
           PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}  
         run: |
-          # Tenta criar o projeto; se já existe (HTTP 409), ignora o erro
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -u "$SONAR_TOKEN:" \
             -d "organization=$SONAR_ORG" \
@@ -69,11 +68,11 @@ jobs:
             https://sonarcloud.io/api/projects/create)
 
           if [ "$response" -eq 200 ]; then
-            echo "✔ Projeto Sonar criado com sucesso: key=$PROJECT_KEY, name=$REPO_NAME"
+            echo "✅ SonarCloud project successfully created: key=$PROJECT_KEY, name=$REPO_NAME"
           elif [ "$response" -eq 409 ]; then
-            echo "ℹ Projeto já existe: key=$PROJECT_KEY"
+            echo "ℹ️ SonarCloud project already exists: key=$PROJECT_KEY"
           else
-            echo "⚠️ Falha ao criar projeto Sonar (HTTP $response), mas vamos prosseguir."
+            echo "⚠️ Failed to create SonarCloud project (HTTP $response). Continuing with the workflow."
           fi
 
       - name: Begin SonarCloud analysis
