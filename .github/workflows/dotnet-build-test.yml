@@ -77,7 +77,7 @@ jobs:
             https://sonarcloud.io/api/projects/create)
 
           if [ "$response" -eq 200 ]; then
-            echo "✅ SonarCloud project successfully created: key=$PROJECT_KEY, name=$REPO_NAME"
+            echo "✅ SonarCloud project successfully created: key=$PROJECT_KEY, name=$PROJECT_KEY"
           elif [ "$response" -eq 409 ]; then
             echo "ℹ️ SonarCloud project already exists: key=$PROJECT_KEY"
           else
