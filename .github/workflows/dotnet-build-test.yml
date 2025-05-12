@@ -52,6 +52,15 @@ jobs:
           $projectKey = "${repo}"
           echo "projectKey=$projectKey" > $env:GITHUB_OUTPUT
 
+      - name: 🔍 Debug Sonar variables (create)
+        shell: bash
+        run: |
+          echo ">>> SONAR_ORG:   $SONAR_ORG"
+          echo ">>> PROJECT_KEY: $PROJECT_KEY"
+          echo ">>> REPO_NAME:   ${REPO_NAME}"
+          # montar curl para inspeção
+          echo "curl -u \"$SONAR_TOKEN:\" -d \"organization=$SONAR_ORG\" -d \"name=$PROJECT_KEY\" -d \"project=$PROJECT_KEY\" https://sonarcloud.io/api/projects/create"
+
       - name: Ensure SonarCloud project exists
         shell: bash
         env:
