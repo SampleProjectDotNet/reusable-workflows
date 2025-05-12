@@ -50,7 +50,7 @@ jobs:
           $org = "${{ secrets.SONAR_ORGANIZATION }}"
           $repo = "${{ github.repository }}" -replace '^.*/', ''
           $projectKey = "${repo}"
-          echo "projectKey=$projectKey" >> $env:GITHUB_OUTPUT
+          echo "projectKey=$projectKey" > $env:GITHUB_OUTPUT
 
       - name: Ensure SonarCloud project exists
         shell: bash
