@@ -63,7 +63,7 @@ jobs:
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -u "$SONAR_TOKEN:" \
             -d "organization=$SONAR_ORG" \
-            -d "name=$REPO_NAME" \
+            -d "name=${{ steps.sonar-key.outputs.projectKey }}" \
             -d "project=$PROJECT_KEY" \
             https://sonarcloud.io/api/projects/create)
 
