@@ -20,7 +20,7 @@ jobs:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
 
-      - name: Detect solutions and prod projects
+      - name: Detect solution and project paths
         id: detect-paths
         shell: pwsh
         run: |
@@ -47,6 +47,7 @@ jobs:
           echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
+
       - name: Restore NuGet packages
         run: nuget restore
 
@@ -56,7 +57,7 @@ jobs:
         run: |
           $org = "${{ secrets.SONAR_ORGANIZATION }}"
           $repo = "${{ github.repository }}" -replace '^.*/', ''
-          $projectKey = "$repo"
+          $projectKey = "${repo}"
           echo "projectKey=$projectKey" > $env:GITHUB_OUTPUT
 
       - name: Ensure SonarCloud project exists
@@ -65,7 +66,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORG:   ${{ secrets.SONAR_ORGANIZATION }}
           REPO_NAME:   ${{ github.repository }}
-          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}
+          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}  
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" \
             -u "$SONAR_TOKEN:" \
@@ -92,39 +93,26 @@ jobs:
             /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Build all solutions
-        shell: pwsh
-        run: |
-          $paths = '${{ steps.detect-paths.outputs.solutionPaths }}'.Split(';')
-          foreach ($sln in $paths) {
-            Write-Host "Building $sln"
-            msbuild $sln /p:Configuration=Release
-          }
+      - name: Build solution
+        run: msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
       - name: Run tests using VSTest
         shell: pwsh
         run: |
           $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
           $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
-          Get-ChildItem -Recurse -Filter *Tests.dll |
-            Where-Object FullName -like '*\bin\Release\*' |
-            ForEach-Object { & $vstest $_.FullName --logger:trx }
+          $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
+          foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
 
       - name: End SonarCloud analysis
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Package all prod projects
-        shell: pwsh
+      - name: Download and Package with NuGet.exe
+        shell: powershell
         run: |
-          if (-not (Test-Path nuget.exe)) {
-            Invoke-WebRequest https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-          }
-          $paths = '${{ steps.detect-paths.outputs.csprojPaths }}'.Split(';')
-          foreach ($proj in $paths) {
-            Write-Host "Packing $proj"
-            .\nuget.exe pack $proj -Properties Configuration=Release -OutputDirectory nupkg
-          }
+          Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+          ./nuget.exe pack "${{ steps.detect-paths.outputs.csprojPath }}" -Properties Configuration=Release -OutputDirectory nupkg
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4
