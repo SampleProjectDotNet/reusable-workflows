@@ -3,7 +3,6 @@ name: Reusable NuGet Publish Workflow
 on:
   workflow_call:
 
-
 jobs:
   publish:
     runs-on: windows-latest
