@@ -24,15 +24,19 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
+          run: |
           $solutions = Get-ChildItem -Recurse -Filter '*.sln' -File
           if (-not $solutions) { throw 'Nenhuma .sln encontrada' }
-          $solutionList = $solutions | ForEach-Object FullName -join ';'
+
+          $solutionList = ($solutions | Select-Object -ExpandProperty FullName) -join ';'
+
           echo "solutionPaths=$solutionList" >> $env:GITHUB_OUTPUT
 
           $prod = Get-ChildItem -Recurse -Filter '*.csproj' -File |
-                  Where-Object FullName -NotMatch '(\\|/)(Test|Tests)(\\|/)'
+                  Where-Object { $_.FullName -NotMatch '(\\|/)(Test|Tests)(\\|/)' }
           if (-not $prod) { throw 'Nenhum projeto de produção (.csproj) encontrado' }
-          $projList = $prod | ForEach-Object FullName -join ';'
+
+          $projList = ($prod | Select-Object -ExpandProperty FullName) -join ';'
           echo "csprojPaths=$projList" >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
