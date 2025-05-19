@@ -48,7 +48,7 @@ jobs:
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
-        run: nuget restore
+        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
 
       - name: Define Sonar project key
         id: sonar-key
