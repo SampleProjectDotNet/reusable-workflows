@@ -47,7 +47,6 @@ jobs:
           echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
-
       - name: Restore NuGet packages
         run: nuget restore
 
@@ -62,17 +61,12 @@ jobs:
 
       - name: Ensure SonarCloud project exists
         shell: bash
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORG:   ${{ secrets.SONAR_ORGANIZATION }}
-          REPO_NAME:   ${{ github.repository }}
-          PROJECT_KEY: ${{ steps.sonar-key.outputs.projectKey }}  
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -u "$SONAR_TOKEN:" \
-            -d "organization=$SONAR_ORG" \
+            -u "${{secrets.SONAR_TOKEN}}:" \
+            -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
             -d "name=${{ steps.sonar-key.outputs.projectKey }}" \
-            -d "project=$PROJECT_KEY" \
+            -d "project=${{ steps.sonar-key.outputs.projectKey }}" \
             https://sonarcloud.io/api/projects/create)
 
           if [ "$response" -eq 200 ]; then
