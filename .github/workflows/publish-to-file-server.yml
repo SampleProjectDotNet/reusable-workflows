@@ -20,10 +20,13 @@ jobs:
           $repoName = "${{ github.repository }}".Split('/')[1]
           echo "repo-name=$repoName" >> $env:GITHUB_OUTPUT
           
-          $nupkgFile = Get-ChildItem -Path "./artifact" -Filter "*.nupkg" | Select-Object -First 1
-          if ($nupkgFile) {
-            $fileName = $nupkgFile.Name
-            $packageName = $fileName -replace '\.([0-9]+\.)+[0-9]+\.nupkg$', ''
+          $exeFile = Get-ChildItem -Path "./release" -Filter "*.exe" -Recurse |
+                     Where-Object { -not $_.Name -match '\.Tests?\.exe$' } |
+                     Select-Object -First 1
+
+          if ($exeFile) {
+            $fileName    = $exeFile.Name
+            $packageName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
             echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
           } else {
             echo "package-name=$repoName" >> $env:GITHUB_OUTPUT
