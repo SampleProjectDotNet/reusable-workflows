@@ -34,18 +34,17 @@ jobs:
 
           $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
 
-            # Encontra todos os .csproj (excluindo pastas de teste)
-          $projects = Get-ChildItem -Path "." -Filter "*.csproj" -Recurse -File |
-                      Where-Object { $_.FullName -notmatch '\\.Test(s)?[\\/]' }
-          if (-not $projects) {
-            Write-Error "Nenhum .csproj válido encontrado."
+          $csproj = Get-ChildItem -Path "." -Filter "$projectName.csproj" -Recurse -File |
+                    Where-Object { $_.FullName -notmatch '\\.Test(s)?[\\/]'} |
+                    Select-Object -First 1
+          if (-not $csproj) {
+            Write-Error "Nenhum projeto '$projectName.csproj' encontrado."
             exit 1
           }
-          # Junta as paths em string única separada por ';'
-          $csprojList = $projects | ForEach-Object { $_.FullName } | Join-String ';'
+          $csprojPath = $csproj.FullName
 
           echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
-          echo "csprojList=$csprojList"   >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
@@ -103,30 +102,18 @@ jobs:
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Pack all projects
-        shell: pwsh
+      - name: Download and Package with NuGet.exe
+        shell: powershell
         run: |
-          # 1) Baixa o nuget.exe se ainda não tiver sido baixado
-          if (-not (Test-Path nuget.exe)) {
-            Invoke-WebRequest `
-              -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe `
-              -OutFile nuget.exe
-          }
-
-          # 2) Recupera a lista de .csproj e remove entradas vazias
-          $list = "${{ steps.detect-paths.outputs.csprojList }}" -split ';' `
-                  | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }  # :contentReference[oaicite:1]{index=1}
-
-          # 3) Empacota cada projeto, escapando espaços em nomes de caminho
-          foreach ($proj in $list) {
-            Write-Host "Packing project: '$proj'"
-
-            & .\nuget.exe pack "`"$proj`"" `
-              -Properties Configuration=Release `
-              -OutputDirectory nupkg
-          }
-
-
+          Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+          ./nuget.exe pack "${{ steps.detect-paths.outputs.csprojPath }}" -Properties Configuration=Release -OutputDirectory nupkg
+      
+      - name: Upload Release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: '**/bin/Release/**/*'              
+          if-no-files-found: warn
 
       - name: Upload NuGet package artifact
         uses: actions/upload-artifact@v4

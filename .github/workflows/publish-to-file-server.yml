@@ -7,11 +7,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download NuGet package artifact
+      - name: Download Release artifacts
         uses: actions/download-artifact@v4
         with:
-          name: nupkg
-          path: ./artifact
+          name: release-artifacts    
+          path: ./release
 
       - name: Extract project information
         id: extract-info
@@ -32,7 +32,10 @@ jobs:
       - name: Recreate artifact ZIP
         shell: pwsh
         run: |
-          Compress-Archive -Path './artifact/*' -DestinationPath artefato.zip -Force
+          Compress-Archive `
+            -Path './release/**/*' `
+            -DestinationPath artefato.zip `
+            -Force
 
       - name: Azure Login
         uses: azure/login@v2
