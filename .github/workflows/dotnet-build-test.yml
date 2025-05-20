@@ -106,13 +106,17 @@ jobs:
       - name: Pack all projects
         shell: pwsh
         run: |
-          # Faz loop em cada projeto retornado pela detect-paths
+          Invoke-WebRequest `
+            -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe `
+            -OutFile nuget.exe       # :contentReference[oaicite:0]{index=0}
+
           $list = "${{ steps.detect-paths.outputs.csprojList }}".Split(';')
           foreach ($proj in $list) {
             Write-Host "Packing $proj"
-            ./nuget.exe pack $proj `
+
+            .\nuget.exe pack $proj `
               -Properties Configuration=Release `
-              -OutputDirectory nupkg
+              -OutputDirectory nupkg # :contentReference[oaicite:1]{index=1}
           }
 
 
