@@ -24,25 +24,28 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          # 1) Encontra a primeira solução .sln
-          $sln = Get-ChildItem -Path . -Filter '*.sln' -Recurse -File | Select-Object -First 1
+          $sln = Get-ChildItem -Path "." -Filter "*.sln" -Recurse -File |
+                 Select-Object -First 1
           if (-not $sln) {
-            Write-Error '❌ Nenhuma solução (.sln) encontrada.'
+            Write-Error "Nenhuma solução (.sln) encontrada."
             exit 1
           }
-              
-          # 2) Lista todos os projetos .csproj (exceto pastas de teste)
-          $projs = Get-ChildItem -Path . -Filter '*.csproj' -Recurse -File |
-                   Where-Object { $_.DirectoryName -notmatch '\\.Test(s)?$' }
-              
-          # 3) Concatena caminhos em uma string separada por ponto-e-vírgula
-          #    usando o operador -join, compatível com PowerShell 5+
-          $csprojList = $projs | ForEach-Object FullName
-          $csprojListString = $csprojList -join ';'
-              
-          # 4) Exporta outputs para uso em outros steps
-          Write-Output "solutionPath=$($sln.FullName)"  | Out-File -FilePath $GITHUB_OUTPUT -Encoding utf8 -Append
-          Write-Output "csprojList=$csprojListString"  | Out-File -FilePath $GITHUB_OUTPUT -Encoding utf8 -Append
+          $solutionPath = $sln.FullName
+
+          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
+
+          $csproj = Get-ChildItem -Path "." -Filter "$projectName.csproj" -Recurse -File |
+                    Where-Object { $_.FullName -notmatch '\\.Test(s)?[\\/]'} |
+                    Select-Object -First 1
+          if (-not $csproj) {
+            Write-Error "Nenhum projeto '$projectName.csproj' encontrado."
+            exit 1
+          }
+          $csprojPath = $csproj.FullName
+
+          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
+          echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
+          echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
@@ -99,17 +102,11 @@ jobs:
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Pack all projects with dependencies
-        shell: pwsh
+      - name: Download and Package with NuGet.exe
+        shell: powershell
         run: |
-          $projects = "${{ steps.detect-paths.outputs.csprojList }}" -split ';' |
-                      Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-          foreach ($proj in $projects) {
-            .\nuget.exe pack "`"$proj`"" `
-              -Properties Configuration=Release `
-              -IncludeReferencedProjects `
-              -OutputDirectory nupkg
-          }
+          Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
+          ./nuget.exe pack "${{ steps.detect-paths.outputs.csprojPath }}" -Properties Configuration=Release -OutputDirectory nupkg
       
       - name: Upload Release artifacts
         uses: actions/upload-artifact@v4
