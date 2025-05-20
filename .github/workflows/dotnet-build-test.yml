@@ -24,30 +24,25 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          $sln = Get-ChildItem -Path "." -Filter "*.sln" -Recurse -File | Select-Object -First 1
+          # 1) Encontra a primeira solução .sln
+          $sln = Get-ChildItem -Path . -Filter '*.sln' -Recurse -File | Select-Object -First 1
           if (-not $sln) {
-            Write-Error "Nenhuma solução (.sln) encontrada."
+            Write-Error '❌ Nenhuma solução (.sln) encontrada.'
             exit 1
           }
-
-          $solutionPath = $sln.FullName
-
-          # Buscar o primeiro projeto principal, ignorando testes
-          $csproj = Get-ChildItem -Path (Split-Path $solutionPath -Parent) -Recurse -Include *.csproj |
-                    Where-Object { $_.FullName -notmatch '\\(Test|Tests|.IntegrationTests)[\\\/]' } |
-                    Select-Object -First 1
-
-          if (-not $csproj) {
-            Write-Error "Nenhum projeto principal encontrado."
-            exit 1
-          }
-
-          $csprojPath = $csproj.FullName
-          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($csproj.Name)
-
-          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
-          echo "csprojPath=$csprojPath" >> $env:GITHUB_OUTPUT
-          echo "projectName=$projectName" >> $env:GITHUB_OUTPUT
+              
+          # 2) Lista todos os projetos .csproj (exceto pastas de teste)
+          $projs = Get-ChildItem -Path . -Filter '*.csproj' -Recurse -File |
+                   Where-Object { $_.DirectoryName -notmatch '\\.Test(s)?$' }
+              
+          # 3) Concatena caminhos em uma string separada por ponto-e-vírgula
+          #    usando o operador -join, compatível com PowerShell 5+
+          $csprojList = $projs | ForEach-Object FullName
+          $csprojListString = $csprojList -join ';'
+              
+          # 4) Exporta outputs para uso em outros steps
+          Write-Output "solutionPath=$($sln.FullName)"  | Out-File -FilePath $GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Output "csprojList=$csprojListString"  | Out-File -FilePath $GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Restore NuGet packages
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
