@@ -86,6 +86,7 @@ jobs:
             /o:"${{ secrets.SONAR_ORGANIZATION }}" `
             /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
+            /d:sonar.branch.name="main"
 
       - name: Build solution
         run: msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
