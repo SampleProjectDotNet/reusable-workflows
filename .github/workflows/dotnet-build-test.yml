@@ -75,13 +75,12 @@ jobs:
           nuget restore "${{ steps.detect-paths.outputs.solutionPath }}" -PackagesDirectory ./.nuget/packages
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
-      - name: Run tests using VSTest
-        shell: pwsh
-        run: |
-          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
-          $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
-          $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
-          foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
+      - name: Run tests
+        uses: microsoft/vstest-action@v1.0.0
+        with:
+          searchFolder: './bin/Release'
+          testAssembly: '*Tests.dll'
+          runInParallel: true
 
       - name: End SonarCloud analysis
         shell: pwsh
