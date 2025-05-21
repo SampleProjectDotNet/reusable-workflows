@@ -26,7 +26,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ./.nuget/packages
+            packages/**
             **/obj
             **/bin/Release
           key: ${{ runner.os }}-build-${{ hashFiles('**/*.sln') }}
@@ -72,7 +72,7 @@ jobs:
       - name: Restore & Build 
         shell: pwsh
         run: |
-          nuget restore "${{ steps.detect-paths.outputs.solutionPath }}" -PackagesDirectory ./.nuget/packages
+          nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
       - name: Run tests
