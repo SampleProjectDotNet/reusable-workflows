@@ -74,12 +74,16 @@ jobs:
         run: |
           nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
+      
+      - name: Debug list release folder
+        run: dir .\bin\Release\*.dll /B /S
+        shell: pwsh
 
       - name: Run tests
         uses: microsoft/vstest-action@v1.0.0
         with:
           searchFolder: './bin/Release'
-          testAssembly: '*Tests.dll'
+          testAssembly: '**/*[Tt]ests.dll'
           runInParallel: true
 
       - name: End SonarCloud analysis
