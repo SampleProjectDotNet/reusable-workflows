@@ -58,9 +58,6 @@ jobs:
           echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
-      - name: Restore NuGet packages
-        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}" -PackagesDirectory ./.nuget/packages
-
       - name: Begin SonarCloud analysis
         shell: pwsh
         run: |
@@ -72,8 +69,11 @@ jobs:
             /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
 
-      - name: Build solution
-        run: msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
+      - name: Restore & Build 
+        shell: pwsh
+        run: |
+          nuget restore "${{ steps.detect-paths.outputs.solutionPath }}" -PackagesDirectory ./.nuget/packages
+          msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
       - name: Run tests using VSTest
         shell: pwsh
