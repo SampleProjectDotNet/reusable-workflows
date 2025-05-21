@@ -26,11 +26,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ${{ env.USERPROFILE }}\.nuget\packages      # cache global do NuGet
-            **/obj                                     # cache de objetos intermediários
-            **/bin/Release                             # cache do build Release
+            ./.nuget/packages
+            **/obj
+            **/bin/Release
           key: ${{ runner.os }}-build-${{ hashFiles('**/*.sln') }}
-
+        
       - name: Detect solution and project paths
         id: detect-paths
         shell: pwsh
@@ -59,7 +59,7 @@ jobs:
           echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
 
       - name: Restore NuGet packages
-        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
+        run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}" -PackagesDirectory ./.nuget/packages
 
       - name: Begin SonarCloud analysis
         shell: pwsh
