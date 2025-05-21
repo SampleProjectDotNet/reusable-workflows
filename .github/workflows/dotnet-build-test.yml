@@ -65,23 +65,23 @@ jobs:
           $projectKey = "${repo}"
           echo "projectKey=$projectKey" > $env:GITHUB_OUTPUT
 
-      - name: Ensure SonarCloud project exists
-        shell: bash
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -u "${{secrets.SONAR_TOKEN}}:" \
-            -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
-            -d "name=${{ steps.sonar-key.outputs.projectKey }}" \
-            -d "project=${{ steps.sonar-key.outputs.projectKey }}" \
-            https://sonarcloud.io/api/projects/create)
+      # - name: Ensure SonarCloud project exists
+      #   shell: bash
+      #   run: |
+      #     response=$(curl -s -o /dev/null -w "%{http_code}" \
+      #       -u "${{secrets.SONAR_TOKEN}}:" \
+      #       -d "organization=${{ secrets.SONAR_ORGANIZATION }}" \
+      #       -d "name=${{ steps.sonar-key.outputs.projectKey }}" \
+      #       -d "project=${{ steps.sonar-key.outputs.projectKey }}" \
+      #       https://sonarcloud.io/api/projects/create)
 
-          if [ "$response" -eq 200 ]; then
-            echo "✅ SonarCloud project successfully created: key=$PROJECT_KEY, name=$PROJECT_KEY"
-          elif [ "$response" -eq 409 ]; then
-            echo "ℹ️ SonarCloud project already exists: key=$PROJECT_KEY"
-          else
-            echo "⚠️ Failed to create SonarCloud project (HTTP $response). Continuing with the workflow."
-          fi
+      #     if [ "$response" -eq 200 ]; then
+      #       echo "✅ SonarCloud project successfully created: key=$PROJECT_KEY, name=$PROJECT_KEY"
+      #     elif [ "$response" -eq 409 ]; then
+      #       echo "ℹ️ SonarCloud project already exists: key=$PROJECT_KEY"
+      #     else
+      #       echo "⚠️ Failed to create SonarCloud project (HTTP $response). Continuing with the workflow."
+      #     fi
 
       - name: Begin SonarCloud analysis
         shell: pwsh
