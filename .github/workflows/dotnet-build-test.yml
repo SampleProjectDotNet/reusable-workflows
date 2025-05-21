@@ -56,21 +56,13 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
 
-      - name: Define Sonar project key
-        id: sonar-key
-        shell: pwsh
-        run: |
-          $org = "${{ secrets.SONAR_ORGANIZATION }}"
-          $repo = "${{ github.repository }}" -replace '^.*/', ''
-          $projectKey = "${repo}"
-          echo "projectKey=$projectKey" > $env:GITHUB_OUTPUT
-
       - name: Begin SonarCloud analysis
         shell: pwsh
         run: |
           choco install sonarscanner-msbuild-net46 --no-progress
+          $repo = "${{ github.repository }}" -replace '^.*/', ''
           SonarScanner.MSBuild.exe begin `
-            /k:"${{ steps.sonar-key.outputs.projectKey }}" `
+            /k:"$repo" `
             /o:"${{ secrets.SONAR_ORGANIZATION }}" `
             /d:sonar.host.url="${{ secrets.SONAR_URL }}" `
             /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
