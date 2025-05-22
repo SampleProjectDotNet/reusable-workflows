@@ -66,15 +66,10 @@ jobs:
       - name: Run tests using VSTest
         shell: pwsh
         run: |
-          $vs=&"${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath; `
-          $vt="$vs\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"; `
-          Get-ChildItem -Recurse -Filter *Tests.dll | `
-            Where-Object FullName -like "*bin*Release*" | `
-            ForEach-Object {
-            & $vt $_.FullName `
-              /logger:trx `
-              /logger:"console;verbosity=minimal"
-          }
+          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+          $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
+          foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx}
 
       - name: End SonarCloud analysis
         shell: pwsh
