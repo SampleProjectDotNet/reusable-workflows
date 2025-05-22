@@ -17,8 +17,6 @@ jobs:
           
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
-        with:
-           nuget-version: 5.11.0
           
       - name: Publish NuGet package
         shell: pwsh
