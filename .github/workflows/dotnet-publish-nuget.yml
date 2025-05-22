@@ -25,5 +25,6 @@ jobs:
         run: |
           $pkg = (Get-ChildItem ./nupkg/*.nupkg | Select-Object -First 1).FullName
           nuget push $pkg `
-            -Source "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
+            -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
+            -ApiKey "${{ secrets.GITHUB_TOKEN }}" `
             -SkipDuplicate
