@@ -17,20 +17,13 @@ jobs:
         id: extract-info
         shell: pwsh
         run: |
-          $repoName = "${{ github.repository }}".Split('/')[1]
-          echo "repo-name=$repoName" >> $env:GITHUB_OUTPUT
-          
-          $exeFile = Get-ChildItem -Path "./release" -Filter "*.exe" -Recurse |
-                     Where-Object { -not $_.Name -match '\.Tests?\.exe$' } |
-                     Select-Object -First 1
+          $repo = '${{ github.event.repository.name }}'
+          $exe  = Get-ChildItem './release' -Filter '*.exe' -Recurse `
+                  | Where-Object Name -notmatch '\.Tests?\.exe$' `
+                  | Select-Object -First 1
 
-          if ($exeFile) {
-            $fileName    = $exeFile.Name
-            $packageName = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-            echo "package-name=$packageName" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "package-name=$repoName" >> $env:GITHUB_OUTPUT
-          }
+          echo "repo-name=$repo" >> $GITHUB_OUTPUT
+          echo "package-name=$($exe.BaseName ?? $repo)" >> $GITHUB_OUTPUT
 
       - name: Recreate artifact ZIP
         shell: pwsh
@@ -45,7 +38,7 @@ jobs:
         with:
          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Upload ZIP para Blob
+      - name: Upload ZIP to Blob
         uses: azure/CLI@v1
         with:
           inlineScript: |
