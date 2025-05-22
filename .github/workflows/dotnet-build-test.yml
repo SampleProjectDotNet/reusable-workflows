@@ -35,28 +35,16 @@ jobs:
         id: detect-paths
         shell: pwsh
         run: |
-          $sln = Get-ChildItem -Path "." -Filter "*.sln" -Recurse -File |
-                 Select-Object -First 1
-          if (-not $sln) {
-            Write-Error "Nenhuma solução (.sln) encontrada."
-            exit 1
-          }
-          $solutionPath = $sln.FullName
-
-          $projectName = [System.IO.Path]::GetFileNameWithoutExtension($sln.Name)
-
-          $csproj = Get-ChildItem -Path "." -Filter "$projectName.csproj" -Recurse -File |
-                    Where-Object { $_.FullName -notmatch '\\.Test(s)?[\\/]'} |
-                    Select-Object -First 1
-          if (-not $csproj) {
-            Write-Error "Nenhum projeto '$projectName.csproj' encontrado."
-            exit 1
-          }
-          $csprojPath = $csproj.FullName
-
-          echo "solutionPath=$solutionPath" >> $env:GITHUB_OUTPUT
-          echo "csprojPath=$csprojPath"     >> $env:GITHUB_OUTPUT
-          echo "projectName=$projectName"   >> $env:GITHUB_OUTPUT
+            $sln = Get-ChildItem -Recurse -Filter '*.sln' -File | Select-Object -First 1
+            if (-not $sln) { Write-Error 'Nenhuma solução (.sln) encontrada.'; exit 1 }
+                
+            $proj = Get-ChildItem -Recurse -Filter '*.csproj' -File |
+              Where-Object FullName -NotMatch '\\.Test(s)?[\\/]+' |
+              Select-Object -First 1
+            if (-not $proj) { Write-Error 'Nenhum projeto .csproj encontrado.'; exit 1 }
+                
+            "solutionPath=$($sln.FullName)" >> $env:GITHUB_OUTPUT
+            "csprojPath=$($proj.FullName)"     >> $env:GITHUB_OUTPUT
 
       - name: Begin SonarCloud analysis
         shell: pwsh
@@ -82,7 +70,7 @@ jobs:
           $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
           $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
           foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
-          
+
       - name: End SonarCloud analysis
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
