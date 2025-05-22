@@ -76,11 +76,11 @@ jobs:
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
       
       - name: Listar DLLs em PowerShell
-          shell: pwsh
-          run: |
-            # Lista todos os *.dll dentro de bin\Release e subpastas,
-            # imprimindo só o nome relativo (equivale a /B /S do CMD)
-            Get-ChildItem .\bin\Release\ -Filter '*.dll' -Recurse -Name
+        shell: pwsh
+        run: |
+          # Lista todos os *.dll dentro de bin\Release e subpastas,
+          # imprimindo só o nome relativo (equivale a /B /S do CMD)
+          Get-ChildItem .\bin\Release\ -Filter '*.dll' -Recurse -Name
 
 
       - name: Run tests
