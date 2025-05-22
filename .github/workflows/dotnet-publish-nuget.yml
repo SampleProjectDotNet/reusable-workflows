@@ -18,10 +18,10 @@ jobs:
       - name: Setup NuGet
         uses: NuGet/setup-nuget@v2
           
-      - name: Publish NuGet package
-        shell: pwsh
+      - name: Configure NuGet source
         run: |
-          $pkg = (Get-ChildItem ./nupkg/*.nupkg | Select-Object -First 1).FullName
-          nuget push $pkg `
-            -Source "https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@nuget.pkg.github.com/${{ github.repository_owner }}/index.json" `
-            -SkipDuplicate
+          nuget sources add -Name "github" -Source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" -Username "${{ github.actor }}" -Password "${{ secrets.GITHUB_TOKEN }}" -StorePasswordInClearText
+
+      - name: Push package
+        run: |
+          nuget push (Get-ChildItem ./nupkg/*.nupkg | Select-Object -First 1).FullName -Source "github" -ApiKey "${{ secrets.GITHUB_TOKEN }}" -SkipDuplicate
