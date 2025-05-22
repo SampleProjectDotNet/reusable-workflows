@@ -74,21 +74,16 @@ jobs:
         run: |
           nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
-      
-      - name: Listar DLLs em PowerShell
+
+      - name: Run tests using VSTest
         shell: pwsh
         run: |
-          # Lista todos os *.dll dentro de bin\Release e subpastas,
-          # imprimindo só o nome relativo (equivale a /B /S do CMD)
-          Get-ChildItem .\bin\Release\ -Filter '*.dll' -Recurse -Name
+          $vstest = (& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -latest -products * -property installationPath) +
+            '\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
 
-
-      - name: Run tests
-        uses: microsoft/vstest-action@v1.0.0
-        with:
-          searchFolder: './bin/Release'
-          testAssembly: '**/*[Tt]ests.dll'
-          runInParallel: true
+          Get-ChildItem .\bin\Release -Recurse -Filter *Tests.dll |
+            ForEach-Object { & $vstest $_.FullName --logger:trx }
 
       - name: End SonarCloud analysis
         shell: pwsh
