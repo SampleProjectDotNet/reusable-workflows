@@ -70,8 +70,12 @@ jobs:
           $vt="$vs\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"; `
           Get-ChildItem -Recurse -Filter *Tests.dll | `
             Where-Object FullName -like "*bin*Release*" | `
-            ForEach-Object { & $vt $_.FullName --logger:trx --logger:"console;verbosity=normal" }
-               
+            ForEach-Object {
+            & $vt $_.FullName `
+              /logger:trx `
+              /logger:"console;verbosity=minimal"
+          }
+
       - name: End SonarCloud analysis
         shell: pwsh
         run: SonarScanner.MSBuild.exe end /d:sonar.login="${{ secrets.SONAR_TOKEN }}"
