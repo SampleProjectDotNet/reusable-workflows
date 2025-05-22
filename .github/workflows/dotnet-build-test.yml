@@ -76,14 +76,12 @@ jobs:
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
 
       - name: Run tests using VSTest
-        shell: pwsh
-        run: |
-          $vstest = (& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -latest -products * -property installationPath) +
-            '\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
-
-          Get-ChildItem .\bin\Release -Recurse -Filter *Tests.dll |
-            ForEach-Object { & $vstest $_.FullName --logger:trx }
+       shell: pwsh
+       run: |
+        $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+        $vstest = "$vsPath\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe"
+        $dlls = Get-ChildItem -Recurse -Filter *Tests.dll | Where-Object { $_.FullName -like "*bin*Release*" }
+        foreach ($dll in $dlls) { & $vstest $dll.FullName --logger:trx }
 
       - name: End SonarCloud analysis
         shell: pwsh
