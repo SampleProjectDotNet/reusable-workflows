@@ -75,9 +75,13 @@ jobs:
           nuget restore "${{ steps.detect-paths.outputs.solutionPath }}"
           msbuild "${{ steps.detect-paths.outputs.solutionPath }}" /p:Configuration=Release
       
-      - name: Debug list release folder
-        run: dir .\bin\Release\*.dll /B /S
-        shell: pwsh
+      - name: Listar DLLs em PowerShell
+          shell: pwsh
+          run: |
+            # Lista todos os *.dll dentro de bin\Release e subpastas,
+            # imprimindo só o nome relativo (equivale a /B /S do CMD)
+            Get-ChildItem .\bin\Release\ -Filter '*.dll' -Recurse -Name
+
 
       - name: Run tests
         uses: microsoft/vstest-action@v1.0.0
