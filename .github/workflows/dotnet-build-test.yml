@@ -31,22 +31,27 @@ jobs:
             **/bin/Release
           key: ${{ runner.os }}-build-${{ hashFiles('**/*.sln') }}
         
-      - name: Detect solution and project paths
+      - name: Detect solution, project and nuspec paths
         id: detect-paths
         shell: pwsh
         run: |
-            $sln = Get-ChildItem -Recurse -Filter '*.sln' -File | Select-Object -First 1
-            if (-not $sln) { Write-Error 'Nenhuma solução (.sln) encontrada.'; exit 1 }
-                
-            $proj = Get-ChildItem -Recurse -Filter '*.csproj' -File |
-              Where-Object FullName -NotMatch '\\.Test(s)?[\\/]+' |
-              Select-Object -First 1
-            if (-not $proj) { Write-Error 'Nenhum projeto .csproj encontrado.'; exit 1 }
-                
-            "solutionPath=$($sln.FullName)" >> $env:GITHUB_OUTPUT
-            "csprojPath=$($proj.FullName)"     >> $env:GITHUB_OUTPUT
+          $sln = Get-ChildItem -Recurse -Filter '*.sln' -File | Select-Object -First 1
+          if (-not $sln) { Write-Error 'Nenhuma solução (.sln) encontrada.'; exit 1 }
 
-      - name: Begin SonarCloud analysis
+          $proj = Get-ChildItem -Recurse -Filter '*.csproj' -File |
+            Where-Object FullName -NotMatch '\\.Test(s)?[\\/]+' |
+            Select-Object -First 1
+          if (-not $proj) { Write-Error 'Nenhum projeto .csproj encontrado.'; exit 1 }
+
+          # Procurar por .nuspec no mesmo diretório do .csproj
+          $nuspec = Get-ChildItem -Path $proj.Directory.FullName -Filter '*.nuspec' -File | Select-Object -First 1
+          if (-not $nuspec) { Write-Error 'Nenhum arquivo .nuspec encontrado ao lado do .csproj.'; exit 1 }
+
+          "solutionPath=$($sln.FullName)"      >> $env:GITHUB_OUTPUT
+          "csprojPath=$($proj.FullName)"       >> $env:GITHUB_OUTPUT
+          "nuspecPath=$($nuspec.FullName)"     >> $env:GITHUB_OUTPUT
+
+          - name: Begin SonarCloud analysis
         shell: pwsh
         run: |
           choco install sonarscanner-msbuild-net46 --no-progress
@@ -80,7 +85,7 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile nuget.exe
-          ./nuget.exe pack "${{ steps.detect-paths.outputs.csprojPath }}" -Properties Configuration=Release -OutputDirectory nupkg
+          ./nuget.exe pack "${{ steps.detect-paths.outputs.nuspecPath }}" -Properties Configuration=Release -OutputDirectory nupkg
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
