@@ -51,7 +51,7 @@ jobs:
           "csprojPath=$($proj.FullName)"       >> $env:GITHUB_OUTPUT
           "nuspecPath=$($nuspec.FullName)"     >> $env:GITHUB_OUTPUT
 
-          - name: Begin SonarCloud analysis
+      - name: Begin SonarCloud analysis
         shell: pwsh
         run: |
           choco install sonarscanner-msbuild-net46 --no-progress
