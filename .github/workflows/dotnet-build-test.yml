@@ -1,4 +1,4 @@
-name: Build, Test and SonarCloud Analysis
+name: Change
 
 on:
   workflow_call:
