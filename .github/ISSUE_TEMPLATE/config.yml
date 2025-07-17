@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentação
+    url: https://github.com/SampleProjectDotNet/reusable-workflows/blob/main/README.md
+    about: Consulte a documentação para informações sobre como usar os workflows
+  - name: 💬 Discussões
+    url: https://github.com/SampleProjectDotNet/reusable-workflows/discussions
+    about: Participe das discussões da comunidade para perguntas gerais e trocas de ideias
