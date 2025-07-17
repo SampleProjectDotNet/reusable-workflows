@@ -1,4 +1,4 @@
-name: Build, Test and Sonar Analysis
+name: Build, Test and SonarCloud Analysis
 
 on:
   workflow_call:
